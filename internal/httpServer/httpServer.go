@@ -53,7 +53,6 @@ func getBillsHandler(w http.ResponseWriter, r *http.Request) {
     var message []string
 	cmd := exec.Command("sh", "-c", "ls " + billsDir + "/" + name)
     output, err := cmd.Output()
-	log.Printf(string(output))
     if err != nil {
         if _, ok := err.(*exec.ExitError); ok {
             message = append(message, "No bills...")
@@ -197,7 +196,7 @@ func countElems(dir string) (int, int, error){
 }	
 
 func checkstats(w http.ResponseWriter, r *http.Request){
-	folderCount, fileCount, err := countElems(tmpDir)
+	folderCount, fileCount, err := countElems(billsDir)
 	if err != nil {
 		log.Println("Ошибка при подсчете файлов:", err)
 		return
