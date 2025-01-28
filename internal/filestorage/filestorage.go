@@ -5,9 +5,24 @@ import (
   	"os"
 	"math/rand"
 	"log"
+	"io/ioutil"
 )
 func TmpRefresh(){
-	err := os.Mkdir("tmp", 0755)
+	tmpDir := "./tmp"
+	files, err := ioutil.ReadDir(tmpDir)
+	if err != nil && !os.IsExist(err){
+		log.Println("Ошибка при удалении существующих файлов: %s", err)
+	}
+
+	for _, file := range files {
+		err := os.Remove(tmpDir + "/" + file.Name())
+		if err != nil{
+			log.Println("Ошибка при удалении существующих файлов: %s", err)
+		}
+	}
+	log.Printf("Files deleted")
+
+	err = os.Mkdir("tmp", 0755)
 	if err != nil && !os.IsExist(err){
 	  log.Println("Ошибка при создании папки:", err)
 	  return
