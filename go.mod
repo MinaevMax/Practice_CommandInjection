@@ -1,4 +1,4 @@
-module sql-injection-server
+module command-injection-server
 
 go 1.18
 

@@ -6,6 +6,34 @@ import (
 	"math/rand"
 	"log"
 )
+func TmpRefresh(){
+	err := os.Mkdir("tmp", 0755)
+	if err != nil && !os.IsExist(err){
+	  log.Println("Ошибка при создании папки:", err)
+	  return
+	}
+	val := rand.Intn(100)
+	for i := 1; i <= val; i++ {
+		fileName := fmt.Sprintf("tmp/somefile%d.txt", i)
+		err = os.WriteFile(fileName, []byte(""), 0644)
+		if err != nil {
+			fmt.Println("Ошибка при создании файла:", err)
+		}
+	}
+
+	flag := os.Getenv("FLAG")
+	err = os.Mkdir("bills/admin", 0755)
+	if err != nil && !os.IsExist(err){
+		log.Println("Ошибка при создании папки admin:", err)
+		return
+	  }
+	err = os.WriteFile("bills/admin/admin.txt", []byte(flag), 0644)
+	if err != nil {
+		log.Println("Ошибка при создании флага:", err)
+	}
+	
+	log.Printf("Created admin.txt")
+}
  
 func Start() { 
 	// Создаем папку bills
@@ -37,29 +65,6 @@ func Start() {
 
 	log.Printf("Created and filled bills directory.")
 
-	err = os.Mkdir("tmp", 0755)
-	if err != nil && !os.IsExist(err){
-	  log.Println("Ошибка при создании папки:", err)
-	  return
-	}
-	for i := 1; i <= 10; i++ {
-		fileName := fmt.Sprintf("tmp/somefile%d.txt", i)
-		err = os.WriteFile(fileName, []byte(""), 0644)
-		if err != nil {
-			fmt.Println("Ошибка при создании файла:", err)
-		}
-	}
-
-	flag := os.Getenv("FLAG")
-	err = os.Mkdir("bills/admin", 0755)
-	if err != nil && !os.IsExist(err){
-		log.Println("Ошибка при создании папки admin:", err)
-		return
-	  }
-	err = os.WriteFile("bills/admin/admin.txt", []byte(flag), 0644)
-	if err != nil {
-		log.Println("Ошибка при создании флага:", err)
-	}
+	TmpRefresh()
 	
-	log.Printf("Created admin.txt")
 }

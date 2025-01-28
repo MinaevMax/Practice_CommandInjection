@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"sql-injection-server/internal/app"
+	"command-injection-server/internal/app"
 )
 
 func main() {

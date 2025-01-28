@@ -36,12 +36,16 @@ type StatsResp struct{
 	People	int `json:"people"`
 }
 
+type Server struct{
+	mu sync.Mutex
+}
+
 const (
 	billsDir = "./bills"
 	tmpDir   = "./tmp"
   )
 
-func getBillsHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server)getBillsHandler(w http.ResponseWriter, r *http.Request) {
     log.Printf("Received a get request")
     name := r.URL.Query().Get("name")
     if name == "" {
@@ -81,8 +85,10 @@ func getBillsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Trying to enter admin")
 			userPassword := r.URL.Query().Get("password")
 
+			s.mu.Lock()
 			cmd := exec.Command("sh", "-c", "ls " + filepath.Join(tmpDir) + " | wc -l")
     		passwordplus1, err := cmd.Output()
+			s.mu.Unlock()
 			passInt, err := strconv.Atoi(strings.TrimSpace(string(passwordplus1)))
 			passwordStr := strconv.Itoa(passInt)
 			if err != nil {
@@ -98,7 +104,7 @@ func getBillsHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				message = append(message, string(content))
 			} else{
-				message = append(message, "Wrong password... Hint: /tmp dir length")
+				message = append(message, "Wrong password... Hint: ./tmp dir length")
 				w.Header().Set("Content-Type", "application/json")
    				json.NewEncoder(w).Encode(Response{Result: message})
 				return
@@ -114,7 +120,7 @@ func getBillsHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(Response{Result: message})
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server)homeHandler(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("./templates/index.html")
 	if err != nil{
 		http.Error(w, err.Error(), 400)
@@ -127,7 +133,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addBill(w http.ResponseWriter, r *http.Request) {
+func (s *Server)addBill(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Trying to add a bill...")
 	var input NewBill
     if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -195,7 +201,7 @@ func countElems(dir string) (int, int, error){
 	return folderCount-1, fileCount-1, nil
 }	
 
-func checkstats(w http.ResponseWriter, r *http.Request){
+func (s *Server)checkstats(w http.ResponseWriter, r *http.Request){
 	folderCount, fileCount, err := countElems(billsDir)
 	if err != nil {
 		log.Println("Ошибка при подсчете файлов:", err)
@@ -209,13 +215,14 @@ func checkstats(w http.ResponseWriter, r *http.Request){
 	json.NewEncoder(w).Encode(StatsResp{BillsCount: fileCount, People: folderCount })
 }
 
-func Start(wg *sync.WaitGroup) {
+func Start(wg *sync.WaitGroup, mu *sync.Mutex) {
 	defer wg.Done()
+	s := Server{mu: *mu}
 	port := os.Getenv("PORT")
-	http.HandleFunc("/getstats", checkstats)
-	http.HandleFunc("/bills/add", addBill)
-	http.HandleFunc("/bills/check", getBillsHandler)
-	http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/getstats", s.checkstats)
+	http.HandleFunc("/bills/add", s.addBill)
+	http.HandleFunc("/bills/check", s.getBillsHandler)
+	http.HandleFunc("/", s.homeHandler)
 	log.Println("Starting server on 8080...")
 	log.Fatal(http.ListenAndServe(port, nil))
 }
