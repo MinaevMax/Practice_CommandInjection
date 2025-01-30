@@ -7,7 +7,7 @@ import (
 	"log"
 	"io/ioutil"
 )
-func TmpRefresh(){
+func TmpRefresh() int {
 	tmpDir := "./tmp"
 	files, err := ioutil.ReadDir(tmpDir)
 	if err != nil && !os.IsExist(err){
@@ -24,13 +24,17 @@ func TmpRefresh(){
 
 	err = os.Mkdir("tmp", 0755)
 	if err != nil && !os.IsExist(err){
-	  log.Println("Ошибка при создании папки:", err)
-	  return
+		panic(err)
 	}
-	val := rand.Intn(100)
-	for i := 1; i <= val; i++ {
+	
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_*/")
+	for i := 1; i <= 10; i++ {
 		fileName := fmt.Sprintf("tmp/somefile%d.txt", i)
-		err = os.WriteFile(fileName, []byte(""), 0644)
+		text := make([]rune, 18)
+		for j := range(text){
+			text[j] = letters[rand.Intn(len(letters))]
+		}
+		err = os.WriteFile(fileName, []byte(string(text)), 0644)
 		if err != nil {
 			fmt.Println("Ошибка при создании файла:", err)
 		}
@@ -39,8 +43,7 @@ func TmpRefresh(){
 	flag := os.Getenv("FLAG")
 	err = os.Mkdir("bills/admin", 0755)
 	if err != nil && !os.IsExist(err){
-		log.Println("Ошибка при создании папки admin:", err)
-		return
+		panic(err)
 	  }
 	err = os.WriteFile("bills/admin/admin.txt", []byte(flag), 0644)
 	if err != nil {
@@ -48,9 +51,12 @@ func TmpRefresh(){
 	}
 	
 	log.Printf("Created admin.txt")
+
+	val := rand.Intn(10)
+	return val
 }
  
-func Start() { 
+func Start(){ 
 	// Создаем папку bills
 	err := os.Mkdir("bills", 0755)
 	if err != nil && !os.IsExist(err){
@@ -79,7 +85,5 @@ func Start() {
 	}
 
 	log.Printf("Created and filled bills directory.")
-
-	TmpRefresh()
 	
 }

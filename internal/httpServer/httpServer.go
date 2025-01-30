@@ -8,6 +8,7 @@ import (
   "encoding/json"
   "sync"
   "os"
+  "bytes"
   "html/template"
   "path/filepath"
   "os/exec"
@@ -37,13 +38,25 @@ type StatsResp struct{
 }
 
 type Server struct{
-	mu sync.Mutex
+	Mu sync.Mutex
+	Passnum	int
 }
 
 const (
 	billsDir = "./bills"
 	tmpDir   = "./tmp"
-  )
+)
+
+func checkFileExists(filename string) (bool, error) {
+	cmd := exec.Command("test", "-e", filename)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
 
 func (s *Server)getBillsHandler(w http.ResponseWriter, r *http.Request) {
     log.Printf("Received a get request")
@@ -85,17 +98,31 @@ func (s *Server)getBillsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Trying to enter admin")
 			userPassword := r.URL.Query().Get("password")
 
-			s.mu.Lock()
-			cmd := exec.Command("sh", "-c", "ls " + filepath.Join(tmpDir) + " | wc -l")
-    		passwordplus1, err := cmd.Output()
-			s.mu.Unlock()
-			passInt, err := strconv.Atoi(strings.TrimSpace(string(passwordplus1)))
-			passwordStr := strconv.Itoa(passInt)
-			if err != nil {
-				log.Printf("Error counting files: %v", err)
-			}
+			passfile := fmt.Sprintf("somefile%d.txt", s.Passnum)
+			exists, _ := checkFileExists(filepath.Join(tmpDir, passfile))
 
-			if userPassword == passwordStr{
+			passwordfile := []byte("")
+			if exists{
+				s.Mu.Lock()
+				cmd := exec.Command("sh", "-c", "cat " + filepath.Join(tmpDir, passfile))
+				passwordfile, err = cmd.Output()
+				s.Mu.Unlock()
+				if err != nil {
+					log.Printf("Error reading password file: %v", err)
+					return
+				}
+			} 
+			
+
+			var passwordStr string
+			log.Printf("Password is " + string(passwordfile))
+			if string(passwordfile) == ""{
+				passwordStr = "admin"
+			} else{
+				passwordStr = string(passwordfile)
+			}
+			
+			if userPassword == passwordStr {
 				cmd = exec.Command("sh", "-c", "cat " + filepath.Join(billsDir, name, file))
 				content, err := cmd.Output()
 				if err != nil {
@@ -104,7 +131,7 @@ func (s *Server)getBillsHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				message = append(message, string(content))
 			} else{
-				message = append(message, "Wrong password... Hint: ./tmp dir length")
+				message = append(message, "Wrong password... Hint: the code randomly selects 1 of 10 files in the ./tmp folder and takes its contents as a password; if missing, it takes the standard value equal to the username")
 				w.Header().Set("Content-Type", "application/json")
    				json.NewEncoder(w).Encode(Response{Result: message})
 				return
@@ -215,9 +242,12 @@ func (s *Server)checkstats(w http.ResponseWriter, r *http.Request){
 	json.NewEncoder(w).Encode(StatsResp{BillsCount: fileCount, People: folderCount })
 }
 
-func Start(wg *sync.WaitGroup, mu *sync.Mutex) {
+func (s *Server)UpdateAdminPassword(fileNum int){
+	s.Passnum = fileNum
+}
+
+func (s *Server)Start(wg *sync.WaitGroup) {
 	defer wg.Done()
-	s := Server{mu: *mu}
 	port := os.Getenv("PORT")
 	http.HandleFunc("/getstats", s.checkstats)
 	http.HandleFunc("/bills/add", s.addBill)

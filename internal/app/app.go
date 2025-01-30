@@ -14,20 +14,22 @@ func Run() error {
 
 	filestorage.Start()
 	mu.Lock()
-	filestorage.TmpRefresh()
+	passnum := filestorage.TmpRefresh()
 	mu.Unlock()
+	server := httpServer.Server{Mu: mu, Passnum: passnum}
 	go func(){
 		for{
 			select{
 			case <-ticker.C:
 					mu.Lock()
-					filestorage.TmpRefresh()
+					passnum := filestorage.TmpRefresh()
+					go server.UpdateAdminPassword(passnum)
 					mu.Unlock()
 			}
 		}
 	} ()
 	wg.Add(1)
-	go httpServer.Start(&wg, &mu)
+	go server.Start(&wg)
 	wg.Wait()
 	return nil
 }
